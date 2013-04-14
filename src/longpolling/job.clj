@@ -24,10 +24,11 @@
     (if-let [job (get @jobs id)]
       (let [p (:next job)
             new-value (apply f (cons (:value job) args))
+            new-status (if (every? (partial = 99) (vals new-value)) :done :run)
             new-job (assoc job :version (inc (:version job))
-                           :status :run
-                           :next (promise)
-                           :value new-value)]
+                               :status new-status
+                               :next (promise)
+                               :value new-value)]
         (alter jobs assoc id new-job)
         (send deliverer (fn [_] (deliver p (trim new-job)) nil))
         (:version new-job))
