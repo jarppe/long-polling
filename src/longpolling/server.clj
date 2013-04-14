@@ -10,6 +10,8 @@
             [ring.middleware.params :refer [wrap-params]]
             [ring.middleware.nested-params :refer [wrap-nested-params]]
             [ring.middleware.keyword-params :refer [wrap-keyword-params]]
+            [ring.middleware.resource :refer [wrap-resource]]
+            [ring.middleware.file-info :refer [wrap-file-info]]
             [slingshot.slingshot :refer [try+ throw+]]
             [longpolling.app :refer [app-routes]]))
 
@@ -36,20 +38,24 @@
   (fn [request]
     (try+
       (handler request)
+      (catch [:error :not-found] {message :message :or {message "not found"}}
+        (resp/status 404 message))
       (catch map? {:keys [status message] :or {status 500 message "ups"}}
         (resp/status status message)))))
 
 (def prod-app
   (-> app-routes
-    wrap-json
-    wrap-sling
-    wrap-keyword-params
-    wrap-nested-params
-    wrap-params))
+    (wrap-json)
+    (wrap-sling)
+    (wrap-keyword-params)
+    (wrap-nested-params)
+    (wrap-params)
+    (wrap-resource "public")
+    (wrap-file-info)))
 
 (def dev-app
   (-> prod-app
-    wrap-reload))
+    (wrap-reload)))
 
 (defn run [& {:keys [mode port] :or {mode :dev port 8080}}]
   (let [app (if (= :prod mode) prod-app (var dev-app))]
